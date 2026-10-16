@@ -1,0 +1,50 @@
+# --- Secrets and signing material -------------------------------------------
+# This project needs no secrets at all. These patterns exist so that one can
+# never be committed by accident.
+*.p12
+*.cer
+*.certSigningRequest
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+.env
+.env.*
+*.env
+secrets/
+AuthKey_*
+
+# --- Xcode -------------------------------------------------------------------
+build/
+DerivedData/
+*.xcresult
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+timeline.xctimeline
+playground.xcworkspace
+.swiftpm/
+.build/
+
+# --- macOS -------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+# Finder duplicates ("File 2.swift", "project 2.pbxproj")
+* 2
+* 2.*
+
+# --- Local agent configuration -----------------------------------------------
+.claude/*.local.md
+.claude/settings.local.json
