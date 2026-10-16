@@ -143,7 +143,9 @@ sys.exit(0 if ok else 1)
 PY
 
   # Pull this run's per-variant parameter reports out of the host app's container.
+  # Look the container up again: xcodebuild's own install can move it.
   local COUNT=0
+  CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null || true)
   if [[ -n "$CONTAINER" && -d "$CONTAINER/Documents/variant-reports" ]]; then
     mkdir -p "$OUT/variant-reports"
     cp "$CONTAINER"/Documents/variant-reports/*.json "$OUT/variant-reports/" 2>/dev/null || true
