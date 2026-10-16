@@ -48,8 +48,9 @@ struct LivePhotoRecipe: Codable, Sendable {
         /// Value stored in the `com.apple.quicktime.still-image-time` item.
         /// Camera files store -1; the time comes from the sample, not the value.
         let value: Int
-        /// Duration of the timed metadata group, in frames of the variant.
-        let durationFrames: Int
+        /// Duration of the timed sample in movie-timescale ticks (1/600 s).
+        /// Camera files use 1 tick.
+        let durationTicks: Int
         /// Also write an identity `live-photo-still-image-transform` and its
         /// reference dimensions in the same sample, as camera files do.
         let includeStillImageTransform: Bool
@@ -106,7 +107,9 @@ struct LivePhotoRecipe: Codable, Sendable {
         guard (0...1).contains(still.timeFraction) else { throw LoadError.invalid("still.timeFraction out of range") }
         guard (0...1).contains(still.compressionQuality) else { throw LoadError.invalid("still.compressionQuality out of range") }
         guard video.keyFrameIntervalSeconds > 0 else { throw LoadError.invalid("keyFrameIntervalSeconds must be positive") }
-        guard stillImageTimeTrack.durationFrames >= 1 else { throw LoadError.invalid("stillImageTimeTrack.durationFrames must be >= 1") }
+        guard (1...600).contains(stillImageTimeTrack.durationTicks) else {
+            throw LoadError.invalid("stillImageTimeTrack.durationTicks must be 1...600")
+        }
         guard Int(Int8.min)...Int(Int8.max) ~= stillImageTimeTrack.value else {
             throw LoadError.invalid("stillImageTimeTrack.value must fit in an Int8")
         }

@@ -12,7 +12,7 @@
   },
   "stillImageTimeTrack": {
     "value": -1,
-    "durationFrames": 1,
+    "durationTicks": 1,
     "includeStillImageTransform": true,
     "associateWithVideoTrack": true
   },

@@ -41,7 +41,7 @@ enum LivePhotoMovieWriter {
         let allowFrameReordering: Bool
         let stillFrameIndex: Int
         let stillImageTimeValue: Int
-        let stillImageTimeDurationFrames: Int
+        let stillImageTimeDurationTicks: Int
         let includeStillImageTransform: Bool
         let associateMetadataWithVideo: Bool
 
@@ -134,7 +134,7 @@ enum LivePhotoMovieWriter {
             let group = LivePhotoMetadata.stillImageTimeGroup(
                 value: settings.stillImageTimeValue,
                 at: settings.stillImageTime,
-                duration: CMTimeMultiply(settings.frameDuration, multiplier: Int32(settings.stillImageTimeDurationFrames)),
+                duration: CMTime(value: CMTimeValue(settings.stillImageTimeDurationTicks), timescale: timescale),
                 transformReferenceSize: settings.includeStillImageTransform ? settings.size : nil)
             guard metadataAdaptor.append(group) else {
                 throw LivePhotoWriteError.writerFailed(writer.error?.localizedDescription ?? "metadata append failed")

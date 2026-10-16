@@ -82,7 +82,7 @@ struct LivePhotoGenerator: Sendable {
             allowFrameReordering: recipe.video.allowFrameReordering,
             stillFrameIndex: stillFrameIndex,
             stillImageTimeValue: recipe.stillImageTimeTrack.value,
-            stillImageTimeDurationFrames: recipe.stillImageTimeTrack.durationFrames,
+            stillImageTimeDurationTicks: recipe.stillImageTimeTrack.durationTicks,
             includeStillImageTransform: recipe.stillImageTimeTrack.includeStillImageTransform,
             associateMetadataWithVideo: recipe.stillImageTimeTrack.associateWithVideoTrack)
         let renderer = self.renderer
@@ -96,6 +96,7 @@ struct LivePhotoGenerator: Sendable {
                 FrameLabel.draw(label, into: buffer)
             },
             progress: progress)
+        renderer.flushTextureCache()
         return pair
     }
 

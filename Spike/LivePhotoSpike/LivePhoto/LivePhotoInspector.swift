@@ -2,6 +2,7 @@ import AVFoundation
 import CoreMedia
 import Foundation
 import ImageIO
+import UIKit
 
 /// Reads back what actually ended up in a still or a movie file, independent of
 /// the code that wrote it. Used by the tests and by the parameter report.
@@ -18,8 +19,8 @@ enum LivePhotoInspector {
         let identifier: String?
         let dataType: String?
         let numberValue: Int?
-        /// Non-numeric values (transform matrix, dimensions), as text.
-        let valueDescription: String?
+        /// Array values (the 3x3 transform) or a size (reference dimensions, as [width, height]).
+        let numbers: [Double]?
         let startSeconds: Double
         let durationSeconds: Double
     }
@@ -156,12 +157,22 @@ enum LivePhotoInspector {
                     identifier: item.identifier?.rawValue,
                     dataType: item.dataType,
                     numberValue: number?.intValue,
-                    valueDescription: number == nil ? value.map { String(describing: $0) } : nil,
+                    numbers: number == nil ? numbers(from: value) : nil,
                     startSeconds: group.timeRange.start.seconds,
                     durationSeconds: group.timeRange.duration.seconds))
             }
         }
         return items
+    }
+
+    private static func numbers(from value: (any NSCopying & NSObjectProtocol)?) -> [Double]? {
+        if let array = value as? [NSNumber] {
+            return array.map(\.doubleValue)
+        }
+        if let size = (value as? NSValue)?.cgSizeValue {
+            return [Double(size.width), Double(size.height)]
+        }
+        return nil
     }
 
     static func fourCharacterCode(_ code: FourCharCode) -> String {
