@@ -31,17 +31,52 @@ struct RecipeTests {
         }
     }
 
-    @Test("Invalid recipes are rejected", arguments: [
-        #"{"schemaVersion":2}"#,
-        #"{"schemaVersion":1,"seed":1,"still":{"timeFraction":1.5,"compressionQuality":0.9},"video":{"bitsPerPixel":{"hevc":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},"stillImageTimeTrack":{"value":0,"durationFrames":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},"variants":[{"id":"a","durationSeconds":1,"framesPerSecond":30,"codec":"hevc"}]}"#,
-        #"{"schemaVersion":1,"seed":1,"still":{"timeFraction":0.5,"compressionQuality":0.9},"video":{"bitsPerPixel":{"hevc":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},"stillImageTimeTrack":{"value":0,"durationFrames":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},"variants":[{"id":"a","durationSeconds":1,"framesPerSecond":30,"codec":"hevc"},{"id":"a","durationSeconds":2,"framesPerSecond":30,"codec":"hevc"}]}"#,
-        #"{"schemaVersion":1,"seed":1,"still":{"timeFraction":0.5,"compressionQuality":0.9},"video":{"bitsPerPixel":{"hevc":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},"stillImageTimeTrack":{"value":0,"durationFrames":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},"variants":[{"id":"a","durationSeconds":1,"framesPerSecond":29,"codec":"hevc"}]}"#,
-        #"{"schemaVersion":1,"seed":1,"still":{"timeFraction":0.5,"compressionQuality":0.9},"video":{"bitsPerPixel":{"hevc":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},"stillImageTimeTrack":{"value":0,"durationFrames":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},"variants":[{"id":"a","durationSeconds":1,"framesPerSecond":30,"codec":"h264"}]}"#,
-        #"{"schemaVersion":1,"seed":1,"still":{"timeFraction":0.5,"compressionQuality":0.9},"video":{"bitsPerPixel":{"hevc":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},"stillImageTimeTrack":{"value":300,"durationFrames":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},"variants":[{"id":"a","durationSeconds":1,"framesPerSecond":30,"codec":"hevc"}]}"#,
-    ])
-    func invalidRecipesAreRejected(json: String) {
-        #expect(throws: (any Error).self) {
-            _ = try LivePhotoRecipe.decode(Data(json.utf8))
+    /// A complete, valid recipe; each invalid case below changes one thing.
+    static let validRecipe = #"""
+    {"schemaVersion":1,"seed":1,"still":{"timeFraction":0.5,"compressionQuality":0.9},
+     "video":{"bitsPerPixel":{"hevc":0.1,"h264":0.1},"keyFrameIntervalSeconds":1,"allowFrameReordering":false},
+     "stillImageTimeTrack":{"value":-1,"durationTicks":1,"includeStillImageTransform":true,"associateWithVideoTrack":true},
+     "variants":[{"id":"a","durationSeconds":1,"framesPerSecond":30,"codec":"hevc"}]}
+    """#
+
+    enum InvalidCase: String, CaseIterable, Sendable {
+        case schemaVersion2, stillTimeOutOfRange, duplicateVariantIDs, unsupportedFrameRate,
+             noBitRateForCodec, stillImageTimeValueTooBig, zeroTicks, tooManyTicks
+
+        func apply(to recipe: inout [String: Any]) {
+            var variants = recipe["variants"] as! [[String: Any]]
+            var still = recipe["still"] as! [String: Any]
+            var video = recipe["video"] as! [String: Any]
+            var track = recipe["stillImageTimeTrack"] as! [String: Any]
+            switch self {
+            case .schemaVersion2: recipe["schemaVersion"] = 2
+            case .stillTimeOutOfRange: still["timeFraction"] = 1.5
+            case .duplicateVariantIDs: variants.append(variants[0])
+            case .unsupportedFrameRate: variants[0]["framesPerSecond"] = 29
+            case .noBitRateForCodec: video["bitsPerPixel"] = ["h264": 0.1]
+            case .stillImageTimeValueTooBig: track["value"] = 300
+            case .zeroTicks: track["durationTicks"] = 0
+            case .tooManyTicks: track["durationTicks"] = 601
+            }
+            recipe["variants"] = variants
+            recipe["still"] = still
+            recipe["video"] = video
+            recipe["stillImageTimeTrack"] = track
+        }
+    }
+
+    @Test("The valid fixture decodes (control for the invalid cases)")
+    func validFixtureDecodes() throws {
+        _ = try LivePhotoRecipe.decode(Data(Self.validRecipe.utf8))
+    }
+
+    @Test("Invalid recipes fail validation", arguments: InvalidCase.allCases)
+    func invalidRecipesAreRejected(invalid: InvalidCase) throws {
+        var object = try #require(JSONSerialization.jsonObject(with: Data(Self.validRecipe.utf8)) as? [String: Any])
+        invalid.apply(to: &object)
+        let data = try JSONSerialization.data(withJSONObject: object)
+        #expect(throws: LivePhotoRecipe.LoadError.self) {
+            _ = try LivePhotoRecipe.decode(data)
         }
     }
 }

@@ -5,7 +5,7 @@ import Testing
 
 /// Phase 0 DoD: save a generated pair with PHAssetCreationRequest, read it
 /// back from the library, and assert it loads as a PHLivePhoto.
-@Suite("Photos round trip", .serialized)
+@Suite("Photos round trip", .serialized, .timeLimit(.minutes(10)))
 struct PhotosRoundTripTests {
     @Test("A saved pair comes back from the library as a PHLivePhoto with its metadata intact")
     func roundTrip() async throws {
@@ -20,6 +20,7 @@ struct PhotosRoundTripTests {
 
         #expect(asset.mediaType == .image)
         #expect(asset.mediaSubtypes.contains(.photoLive))
+        #expect(asset.playbackStyle == .livePhoto)
         #expect(asset.pixelWidth == size.width)
         #expect(asset.pixelHeight == size.height)
 
@@ -46,5 +47,25 @@ struct PhotosRoundTripTests {
         #expect(movie.metadataTrackReferencesVideo == generator.recipe.stillImageTimeTrack.associateWithVideoTrack)
         let still = try LivePhotoInspector.inspectStill(at: exportedStill)
         #expect(still.contentIdentifier == pair.contentIdentifier)
+    }
+
+    @Test("Photos refuses to save a still and movie whose identifiers don't match")
+    func mismatchedPairIsNotSaved() async throws {
+        try TestSupport.requireReadWriteAccess()
+        let generator = try TestSupport.makeGenerator()
+        let variant = try #require(generator.recipe.variants.first)
+        let size = PixelSize(width: 390, height: 844)
+        let first = try await generator.generate(variant, size: size)
+        let second = try await generator.generate(variant, size: size)
+        let mismatched = LivePhotoPair(
+            contentIdentifier: first.contentIdentifier, variant: variant, size: size,
+            stillURL: first.stillURL, movieURL: second.movieURL,
+            stillFrameIndex: first.stillFrameIndex, averageBitRate: first.averageBitRate)
+
+        // Control: a matching pair at the same size saves.
+        _ = try await PhotoLibraryBridge.save(first)
+        await #expect(throws: PhotoLibraryError.self) {
+            _ = try await PhotoLibraryBridge.save(mismatched)
+        }
     }
 }

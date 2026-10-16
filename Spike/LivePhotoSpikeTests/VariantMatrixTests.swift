@@ -6,7 +6,8 @@ import Testing
 /// Phase 0 DoD: every hardware-test variant saves on the simulator and reads
 /// back as a Live Photo. Writes one JSON report per variant (the exact
 /// parameters that end up in docs/DECISIONS.md).
-@Suite("Variant matrix", .serialized)
+// The time limit applies to each variant separately.
+@Suite("Variant matrix", .serialized, .timeLimit(.minutes(10)))
 struct VariantMatrixTests {
     /// Loaded from the bundled recipe. RecipeTests separately asserts there are
     /// exactly 12, so an empty list here cannot pass silently.
@@ -33,6 +34,9 @@ struct VariantMatrixTests {
         let targetAverageBitRate: Int
         let keyFrameIntervalFrames: Int
         let device: DeviceInfo
+        /// The recipe the variant was written with, so a report can't be
+        /// mistaken for one from a different recipe.
+        let recipe: LivePhotoRecipe
         let generationSeconds: Double
         let writtenStill: LivePhotoInspector.Still
         let writtenMovie: LivePhotoInspector.Movie
@@ -71,8 +75,17 @@ struct VariantMatrixTests {
 
         #expect(storedMovie.contentIdentifier == pair.contentIdentifier)
         #expect(storedStill.contentIdentifier == pair.contentIdentifier)
-        #expect(storedMovie.stillImageTime != nil)
         #expect(storedMovie.videoSampleCount == variant.frameCount)
+        #expect(storedMovie.width == device.nativePixelSize.width)
+        #expect(storedMovie.height == device.nativePixelSize.height)
+        let track = generator.recipe.stillImageTimeTrack
+        let stillImageTime = try #require(storedMovie.stillImageTime)
+        #expect(stillImageTime.numberValue == track.value)
+        #expect(abs(stillImageTime.startSeconds - pair.stillTimeSeconds) < 0.001)
+        #expect(storedMovie.metadataTrackReferencesVideo == track.associateWithVideoTrack)
+        if track.includeStillImageTransform {
+            #expect(storedMovie.timedItem(LivePhotoMetadata.stillImageTransformIdentifier)?.numbers == [1, 0, 0, 0, 1, 0, 0, 0, 1])
+        }
 
         let report = Report(
             variantID: variant.id,
@@ -85,6 +98,7 @@ struct VariantMatrixTests {
             targetAverageBitRate: pair.averageBitRate,
             keyFrameIntervalFrames: max(1, Int((generator.recipe.video.keyFrameIntervalSeconds * Double(variant.framesPerSecond)).rounded())),
             device: device,
+            recipe: generator.recipe,
             generationSeconds: Double(generationTime.components.seconds) + Double(generationTime.components.attoseconds) / 1e18,
             writtenStill: writtenStill,
             writtenMovie: writtenMovie,

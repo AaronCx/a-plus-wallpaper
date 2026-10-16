@@ -4,11 +4,12 @@ import Testing
 @testable import LivePhotoSpike
 
 /// Checks the files themselves, before Photos is involved.
-@Suite("Live Photo files", .serialized)
+@Suite("Live Photo files", .serialized, .timeLimit(.minutes(10)))
 struct LivePhotoFileTests {
-    static let codecSamples = ["1.5s-30fps-hevc", "1.5s-30fps-h264"]
+    /// One variant per codec and frame rate.
+    static let formatSamples = ["1.5s-30fps-hevc", "1.5s-30fps-h264", "2.0s-60fps-hevc", "2.0s-60fps-h264"]
 
-    @Test("Still and movie carry the same content identifier and the still-image-time track", arguments: codecSamples)
+    @Test("Still and movie carry the same content identifier and the still-image-time track", arguments: formatSamples)
     func filesAreLinked(variantID: String) async throws {
         let generator = try TestSupport.makeGenerator()
         let recipe = generator.recipe
@@ -36,6 +37,9 @@ struct LivePhotoFileTests {
         #expect(stillImageTime.dataType == "com.apple.metadata.datatype.int8")
         #expect(stillImageTime.numberValue == recipe.stillImageTimeTrack.value)
         #expect(abs(stillImageTime.startSeconds - pair.stillTimeSeconds) < 0.001)
+        #expect(abs(stillImageTime.durationSeconds - Double(recipe.stillImageTimeTrack.durationTicks) / 600) < 0.0001)
+        // The key photo sits on a frame, at least 0.5 s into the clip.
+        #expect(pair.stillTimeSeconds >= 0.5)
 
         if recipe.stillImageTimeTrack.includeStillImageTransform {
             let transform = try #require(movie.timedItem(LivePhotoMetadata.stillImageTransformIdentifier))
@@ -44,6 +48,8 @@ struct LivePhotoFileTests {
             #expect(dimensions.startSeconds == stillImageTime.startSeconds, "same sample as the still-image time")
             #expect(transform.dataType == kCMMetadataBaseDataType_PerspectiveTransformF64 as String)
             #expect(dimensions.dataType == kCMMetadataBaseDataType_DimensionsF32 as String)
+            #expect(transform.numbers == [1, 0, 0, 0, 1, 0, 0, 0, 1])
+            #expect(dimensions.numbers == [Double(size.width), Double(size.height)])
         }
         #expect(movie.metadataTrackReferencesVideo == recipe.stillImageTimeTrack.associateWithVideoTrack)
     }
@@ -66,12 +72,14 @@ struct LivePhotoFileTests {
         let size = PixelSize(width: 390, height: 844)
         let first = try await generator.generate(variant, size: size)
         let second = try await generator.generate(variant, size: size)
+        // Control: each pair on its own loads at this size.
+        _ = try await PhotoLibraryBridge.loadLivePhoto(from: first)
         let mismatched = LivePhotoPair(
             contentIdentifier: first.contentIdentifier, variant: variant, size: size,
             stillURL: first.stillURL, movieURL: second.movieURL,
             stillFrameIndex: first.stillFrameIndex, averageBitRate: first.averageBitRate)
 
-        await #expect(throws: (any Error).self) {
+        await #expect(throws: PhotoLibraryError.self) {
             _ = try await PhotoLibraryBridge.loadLivePhoto(from: mismatched)
         }
     }
