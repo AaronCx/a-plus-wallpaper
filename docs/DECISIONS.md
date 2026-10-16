@@ -48,7 +48,7 @@ Any motion attempt probably also needs the **video** capped at about 1920 px on 
 
 ### D-5: iOS 17 as the minimum
 
-**Status:** open, assumed for now. The spike targets iOS 17.0, and every symbol it uses compiles at 17.0. Simulator results on iOS 17.5 are in the parameter tables below.
+**Status:** open, assumed for now. The spike targets iOS 17.0, and every symbol it uses compiles at 17.0. The full suite (14 tests, all 12 variants) passes on iOS 17.5 on iPhone Xs (the oldest iPhone iOS 17 supports), iPhone SE (3rd gen) and iPad Pro 13-inch (M4). See the per-simulator table below.
 
 ## Decided
 
@@ -66,7 +66,170 @@ Any motion attempt probably also needs the **video** capped at about 1920 px on 
 
 ## Phase 0: exact parameters of each Live Photo variant
 
-PARAMS_PLACEHOLDER
+Measured on 2026-10-16 from the written files **and** from what Photos stored, by `scripts/spike-matrix.sh` (Xcode 26.5) on 7 simulators. Every variant is stored as a Live Photo on every simulator, with its identifiers and timed metadata intact.
+
+Shared by every variant (recipe schema 1):
+
+- Shader `spikeDrift`, seed 20261016, rendered at the screen's native pixel size, BGRA 8-bit, sRGB.
+- Still: HEIC, quality 0.9, maker-note key "17" = content identifier; the exact frame at the still time (frame index = floor(frames x 0.5)).
+- Movie: QuickTime `.mov`, timescale 600, constant frame rate, no audio; top-level `com.apple.quicktime.content.identifier` (UTF-8).
+- Video: HEVC Main AutoLevel (`hvc1`) or H.264 High AutoLevel (`avc1`); BT.709 primaries, transfer and matrix; key frame every 1s; frame reordering off; average bit rate = bits-per-pixel x width x height x fps with bits-per-pixel h264 0.12, hevc 0.08.
+- Timed metadata: one `mebx` track, one sample of 1 tick(s) at the still time: `still-image-time` (int8) = -1, identity `live-photo-still-image-transform` (3x3 float64) and `...reference-dimensions` (float32, the video size); the track references the video track (`tref cdsc`).
+- Saved with one `PHAssetCreationRequest`: `.photo` (HEIC) + `.pairedVideo` (MOV).
+
+**Per variant** (the same on every device except the pixel size, which is always the screen's native size):
+
+| Variant | Duration | fps | Frames | Still frame (time; ticks) | Codec / profile | Key frame | Average bit rate (bit/s) |
+|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 1.5 s | 30 | 45 | 22 (0.733 s; 440/600) | H.264 High AutoLevel (`avc1`) | 30 frames (1 s) | 0.12 × w × h × 30 |
+| 1.5s-30fps-hevc | 1.5 s | 30 | 45 | 22 (0.733 s; 440/600) | HEVC Main AutoLevel (`hvc1`) | 30 frames (1 s) | 0.08 × w × h × 30 |
+| 1.5s-60fps-h264 | 1.5 s | 60 | 90 | 45 (0.750 s; 450/600) | H.264 High AutoLevel (`avc1`) | 60 frames (1 s) | 0.12 × w × h × 60 |
+| 1.5s-60fps-hevc | 1.5 s | 60 | 90 | 45 (0.750 s; 450/600) | HEVC Main AutoLevel (`hvc1`) | 60 frames (1 s) | 0.08 × w × h × 60 |
+| 2.0s-30fps-h264 | 2 s | 30 | 60 | 30 (1.000 s; 600/600) | H.264 High AutoLevel (`avc1`) | 30 frames (1 s) | 0.12 × w × h × 30 |
+| 2.0s-30fps-hevc | 2 s | 30 | 60 | 30 (1.000 s; 600/600) | HEVC Main AutoLevel (`hvc1`) | 30 frames (1 s) | 0.08 × w × h × 30 |
+| 2.0s-60fps-h264 | 2 s | 60 | 120 | 60 (1.000 s; 600/600) | H.264 High AutoLevel (`avc1`) | 60 frames (1 s) | 0.12 × w × h × 60 |
+| 2.0s-60fps-hevc | 2 s | 60 | 120 | 60 (1.000 s; 600/600) | HEVC Main AutoLevel (`hvc1`) | 60 frames (1 s) | 0.08 × w × h × 60 |
+| 3.0s-30fps-h264 | 3 s | 30 | 90 | 45 (1.500 s; 900/600) | H.264 High AutoLevel (`avc1`) | 30 frames (1 s) | 0.12 × w × h × 30 |
+| 3.0s-30fps-hevc | 3 s | 30 | 90 | 45 (1.500 s; 900/600) | HEVC Main AutoLevel (`hvc1`) | 30 frames (1 s) | 0.08 × w × h × 30 |
+| 3.0s-60fps-h264 | 3 s | 60 | 180 | 90 (1.500 s; 900/600) | H.264 High AutoLevel (`avc1`) | 60 frames (1 s) | 0.12 × w × h × 60 |
+| 3.0s-60fps-hevc | 3 s | 60 | 180 | 90 (1.500 s; 900/600) | HEVC Main AutoLevel (`hvc1`) | 60 frames (1 s) | 0.08 × w × h × 60 |
+
+**Per simulator** (full suite: 14 tests, 12 variants saved and read back):
+
+| Simulator | iOS | Native size | Tests | Stored as Live | IDs + metadata kept by Photos | Largest MOV |
+|---|---|---|---|---|---|---|
+| iPhone 17 (iPhone18,3) | 26.5 | 1206x2622 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 10,505 KB (3.0s-60fps-h264) |
+| iPhone 17 Pro Max (iPhone18,2) | 26.5 | 1320x2868 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 11,635 KB (3.0s-60fps-h264) |
+| iPhone SE (3rd gen) (iPhone14,6) | 26.5 | 750x1334 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 4,295 KB (3.0s-60fps-h264) |
+| iPad Pro 13-inch (M5) (iPad17,4) | 26.5 | 2064x2752 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 15,305 KB (3.0s-60fps-h264) |
+| iPhone Xs (iPhone11,2) | 17.5 | 1125x2436 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 9,486 KB (3.0s-60fps-h264) |
+| iPhone SE (3rd gen) (iPhone14,6) | 17.5 | 750x1334 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 4,293 KB (3.0s-60fps-h264) |
+| iPad Pro 13-inch (M4) (iPad16,6) | 17.5 | 2064x2752 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 15,305 KB (3.0s-60fps-h264) |
+
+The simulator's encoders are software-only, so its measured bit rates (in the tables below) say nothing about devices. H.264 overshoots its target there by up to about 1.6×.
+
+<details><summary>Full measured tables, one per simulator</summary>
+
+**iPhone18,3, iOS 26.5, native 1206x2622 @3x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 1206x2622 | 30 frames | 11.4 | 16.6 | 3050 | 104 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 1206x2622 | 30 frames | 7.6 | 8.0 | 1469 | 104 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 1206x2622 | 60 frames | 22.8 | 28.7 | 5264 | 104 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 1206x2622 | 60 frames | 15.2 | 15.9 | 2917 | 103 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 1206x2622 | 30 frames | 11.4 | 16.3 | 3989 | 104 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 1206x2622 | 30 frames | 7.6 | 7.9 | 1927 | 103 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 1206x2622 | 60 frames | 22.8 | 28.5 | 6959 | 104 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 1206x2622 | 60 frames | 15.2 | 15.7 | 3843 | 103 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 1206x2622 | 30 frames | 11.4 | 16.1 | 5911 | 104 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 1206x2622 | 30 frames | 7.6 | 7.8 | 2874 | 103 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 1206x2622 | 60 frames | 22.8 | 28.7 | 10505 | 104 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 1206x2622 | 60 frames | 15.2 | 15.6 | 5724 | 103 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPhone18,2, iOS 26.5, native 1320x2868 @3x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 1320x2868 | 30 frames | 13.6 | 18.7 | 3426 | 113 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 1320x2868 | 30 frames | 9.1 | 9.6 | 1752 | 113 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 1320x2868 | 60 frames | 27.3 | 32.1 | 5877 | 113 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 1320x2868 | 60 frames | 18.2 | 19.0 | 3480 | 112 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 1320x2868 | 30 frames | 13.6 | 18.4 | 4496 | 113 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 1320x2868 | 30 frames | 9.1 | 9.4 | 2286 | 113 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 1320x2868 | 60 frames | 27.3 | 31.7 | 7743 | 113 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 1320x2868 | 60 frames | 18.2 | 18.7 | 4558 | 113 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 1320x2868 | 30 frames | 13.6 | 18.4 | 6741 | 113 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 1320x2868 | 30 frames | 9.1 | 9.3 | 3396 | 112 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 1320x2868 | 60 frames | 27.3 | 31.8 | 11635 | 113 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 1320x2868 | 60 frames | 18.2 | 18.6 | 6815 | 112 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPhone14,6, iOS 26.5, native 750x1334 @2x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 750x1334 | 30 frames | 3.6 | 3.7 | 673 | 50 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.5 | 456 | 50 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 750x1334 | 60 frames | 7.2 | 12.1 | 2219 | 50 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 750x1334 | 60 frames | 4.8 | 5.0 | 913 | 50 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 750x1334 | 30 frames | 3.6 | 3.6 | 888 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.5 | 601 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 750x1334 | 60 frames | 7.2 | 11.9 | 2915 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 750x1334 | 60 frames | 4.8 | 4.9 | 1201 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 750x1334 | 30 frames | 3.6 | 3.7 | 1341 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.5 | 900 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 750x1334 | 60 frames | 7.2 | 11.7 | 4295 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 750x1334 | 60 frames | 4.8 | 4.9 | 1800 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPad17,4, iPadOS 26.5, native 2064x2752 @2x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.8 | 4355 | 132 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.4 | 2644 | 132 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.3 | 7558 | 132 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 2064x2752 | 60 frames | 27.3 | 28.0 | 5126 | 132 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.5 | 5727 | 132 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.1 | 3452 | 131 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.1 | 10040 | 132 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 2064x2752 | 60 frames | 27.3 | 27.7 | 6761 | 131 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.7 | 8672 | 129 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.1 | 5160 | 128 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.8 | 15305 | 129 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 2064x2752 | 60 frames | 27.3 | 27.7 | 10151 | 128 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPhone11,2, iOS 17.5, native 1125x2436 @3x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 1125x2436 | 30 frames | 9.9 | 14.8 | 2706 | 94 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 1125x2436 | 30 frames | 6.6 | 6.9 | 1269 | 94 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 1125x2436 | 60 frames | 19.7 | 25.7 | 4710 | 94 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 1125x2436 | 60 frames | 13.2 | 13.8 | 2522 | 93 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 1125x2436 | 30 frames | 9.9 | 14.6 | 3565 | 94 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 1125x2436 | 30 frames | 6.6 | 6.8 | 1664 | 94 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 1125x2436 | 60 frames | 19.7 | 25.4 | 6205 | 95 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 1125x2436 | 60 frames | 13.2 | 13.6 | 3320 | 94 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 1125x2436 | 30 frames | 9.9 | 14.3 | 5239 | 92 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 1125x2436 | 30 frames | 6.6 | 6.8 | 2479 | 92 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 1125x2436 | 60 frames | 19.7 | 25.9 | 9486 | 93 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 1125x2436 | 60 frames | 13.2 | 13.6 | 4969 | 92 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPhone14,6, iOS 17.5, native 750x1334 @2x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 750x1334 | 30 frames | 3.6 | 3.7 | 673 | 50 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.5 | 456 | 50 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 750x1334 | 60 frames | 7.2 | 12.1 | 2221 | 50 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 750x1334 | 60 frames | 4.8 | 5.0 | 914 | 50 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 750x1334 | 30 frames | 3.6 | 3.6 | 889 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.5 | 601 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 750x1334 | 60 frames | 7.2 | 11.9 | 2917 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 750x1334 | 60 frames | 4.8 | 4.9 | 1204 | 50 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 750x1334 | 30 frames | 3.6 | 3.7 | 1341 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 750x1334 | 30 frames | 2.4 | 2.4 | 898 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 750x1334 | 60 frames | 7.2 | 11.7 | 4293 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 750x1334 | 60 frames | 4.8 | 4.9 | 1797 | 49 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+**iPad16,6, iPadOS 17.5, native 2064x2752 @2x**
+
+| Variant | Frames | Still frame (s) | Codec | Video px | Key frame every | Target Mbit/s | Measured Mbit/s | MOV KB | HEIC KB | Still sample | Photos: Live? | Photos kept IDs + metadata? |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.5s-30fps-h264 | 45 | 22 (0.733) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.8 | 4354 | 132 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-30fps-hevc | 45 | 22 (0.733) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.4 | 2641 | 132 | -1 @ 0.733s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-h264 | 90 | 45 (0.750) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.3 | 7558 | 132 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 1.5s-60fps-hevc | 90 | 45 (0.750) | hvc1 | 2064x2752 | 60 frames | 27.3 | 28.0 | 5126 | 132 | -1 @ 0.750s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-h264 | 60 | 30 (1.000) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.4 | 5725 | 132 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-30fps-hevc | 60 | 30 (1.000) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.1 | 3450 | 131 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-h264 | 120 | 60 (1.000) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.1 | 10043 | 132 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 2.0s-60fps-hevc | 120 | 60 (1.000) | hvc1 | 2064x2752 | 60 frames | 27.3 | 27.7 | 6758 | 131 | -1 @ 1.000s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-h264 | 90 | 45 (1.500) | avc1 | 2064x2752 | 30 frames | 20.4 | 23.7 | 8670 | 129 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-30fps-hevc | 90 | 45 (1.500) | hvc1 | 2064x2752 | 30 frames | 13.6 | 14.1 | 5157 | 128 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-h264 | 180 | 90 (1.500) | avc1 | 2064x2752 | 60 frames | 40.9 | 41.8 | 15305 | 129 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+| 3.0s-60fps-hevc | 180 | 90 (1.500) | hvc1 | 2064x2752 | 60 frames | 27.3 | 27.7 | 10142 | 128 | -1 @ 1.500s for 1 tick + transform, dims, cdsc | yes | yes |
+
+</details>
 
 ## Phase 0 hardware results (Aaron)
 

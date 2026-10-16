@@ -16,7 +16,7 @@
   - **Debug screen:** saves each of the 12 variants (1.5/2/3 s × 30/60 fps × HEVC/H.264), or all of them. Each frame carries a small label naming its variant, so a Lock Screen shows which one it is. It previews the last pair with `PHLivePhotoView` and can check each saved asset is stored as Live.
   - **Data, not code:** the tunable parameters live in `Spike/LivePhotoSpike/LivePhotoRecipe.json`: the variants, seed, bits per pixel, key-frame interval, frame reordering, still position and HEIC quality, and the still-image-time track options.
     - Fixed in code: codec profile and level, BT.709 colour tags (`LivePhotoMovieWriter.swift`), the 600 timescale, BGRA source buffers, and output size = the screen's native pixels.
-- **Tests (Swift Testing, 12 tests, 4 parameterized file-format cases, 12 parameterized variant cases):**
+- **Tests (Swift Testing, 14 tests; 35 cases counting parameters):**
   - The recipe matrix.
   - Rendering: native size, same output for the same inputs, motion over time.
   - File format, per codec at 30 and 60 fps: identifiers, the still-image-time value, time and duration, identity transform and reference-dimension values, track reference, codec, size, frame count, duration.
@@ -33,7 +33,19 @@
 
 ### Simulator test matrix (this session)
 
-See the PR description and `DECISIONS.md` for the per-variant tables. All runs used `scripts/spike-matrix.sh`.
+`scripts/spike-matrix.sh` ran on the final code. Every row is the full suite with all 12 variants saved to Photos and read back; the per-variant parameters are in `DECISIONS.md`.
+
+| Simulator | iOS | Native size | Tests | Stored as Live | IDs + metadata kept by Photos | Largest MOV |
+|---|---|---|---|---|---|---|
+| iPhone 17 (iPhone18,3) | 26.5 | 1206x2622 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 10,505 KB (3.0s-60fps-h264) |
+| iPhone 17 Pro Max (iPhone18,2) | 26.5 | 1320x2868 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 11,635 KB (3.0s-60fps-h264) |
+| iPhone SE (3rd gen) (iPhone14,6) | 26.5 | 750x1334 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 4,295 KB (3.0s-60fps-h264) |
+| iPad Pro 13-inch (M5) (iPad17,4) | 26.5 | 2064x2752 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 15,305 KB (3.0s-60fps-h264) |
+| iPhone Xs (iPhone11,2) | 17.5 | 1125x2436 @3x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 9,486 KB (3.0s-60fps-h264) |
+| iPhone SE (3rd gen) (iPhone14,6) | 17.5 | 750x1334 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 4,293 KB (3.0s-60fps-h264) |
+| iPad Pro 13-inch (M4) (iPad16,6) | 17.5 | 2064x2752 @2x | 14/14 passed, 0 skipped | 12/12 | 12/12 | 15,305 KB (3.0s-60fps-h264) |
+
+CI (`macos-26`, Xcode 26.5) runs the same full suite on iPhone 17 / iOS 26.5. No iOS 18 runtime was available (none is installed here, and none is on GitHub's `macos-26` image).
 
 ### Next: for Aaron
 
