@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same ref so stale macOS runs don't pile up.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: No secrets, signing material, Finder duplicates or spike network hosts
+        run: scripts/check-repo-hygiene.sh
+
+  spike:
+    name: Phase 0 spike (build + tests)
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Match the Mac mini's Xcode (26.5) when the image has it; the image
+      # default (26.6 today) otherwise.
+      - name: Select Xcode
+        run: |
+          if [[ -d /Applications/Xcode_26.5.app ]]; then
+            echo "DEVELOPER_DIR=/Applications/Xcode_26.5.app/Contents/Developer" >> "$GITHUB_ENV"
+          else
+            echo "DEVELOPER_DIR=$(xcode-select -p)" >> "$GITHUB_ENV"
+          fi
+
+      # Xcode 26 ships the Metal compiler as a separate component, and the
+      # runner image has been seen without it (actions/runner-images#13014).
+      - name: Ensure the Metal toolchain is installed
+        run: |
+          xcodebuild -version
+          if ! xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q "Status: installed"; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      # Builds with warnings-as-errors, installs, grants Photos access, runs every
+      # test and fails on any failed or skipped test (see the script header).
+      - name: Build and test on the newest iPhone simulator
+        run: scripts/spike-test.sh --device "iPhone 17" --out build/ci
