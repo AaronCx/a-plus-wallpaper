@@ -1,7 +1,10 @@
 // SpikeDrift.metal
 //
 // Original work for a+wallpaper, written for the Phase 0 Live Photo spike.
-// Not derived from Shadertoy, tutorials or any other shader source.
+// No code was taken from Shadertoy, tutorials or other repositories. The
+// integer hash implements the published PCG algorithm (M. O'Neill,
+// pcg-random.org); the brief asks for a PCG-style hash. Everything else is
+// written from scratch.
 // License: same as the rest of this repository (pending the owner's choice,
 // see docs/DECISIONS.md, item D-2).
 //

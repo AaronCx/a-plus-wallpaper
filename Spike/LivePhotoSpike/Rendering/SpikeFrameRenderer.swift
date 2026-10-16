@@ -1,5 +1,6 @@
 import CoreVideo
 import Metal
+import os
 
 /// Output size in pixels.
 struct PixelSize: Sendable, Hashable, Codable, CustomStringConvertible {
@@ -38,9 +39,10 @@ enum SpikeRenderError: Error, CustomStringConvertible {
 /// consumes without a CPU copy. The same code path renders the still and every
 /// video frame, so the two cannot drift apart.
 ///
-/// `@unchecked Sendable`: every stored property is immutable after `init`, and
-/// Apple documents `MTLDevice`, `MTLCommandQueue`, `MTLComputePipelineState`
-/// and `CVMetalTextureCache` as safe to use from multiple threads.
+/// `@unchecked Sendable`: the Metal objects are `Sendable` in the SDK, but
+/// `CVMetalTextureCache` is imported as non-Sendable
+/// (CoreVideo/CVMetalTextureCache.h:50), so every use of it goes through
+/// `cacheLock`. All stored properties are immutable after `init`.
 final class SpikeFrameRenderer: @unchecked Sendable {
     static let functionName = "spikeDrift"
 
@@ -48,6 +50,7 @@ final class SpikeFrameRenderer: @unchecked Sendable {
     private let queue: any MTLCommandQueue
     private let pipeline: any MTLComputePipelineState
     private let textureCache: CVMetalTextureCache
+    private let cacheLock = OSAllocatedUnfairLock()
 
     init() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw SpikeRenderError.noMetalDevice }
@@ -98,8 +101,10 @@ final class SpikeFrameRenderer: @unchecked Sendable {
         let height = CVPixelBufferGetHeight(pixelBuffer)
 
         var cvTexture: CVMetalTexture?
-        let status = CVMetalTextureCacheCreateTextureFromImage(
-            kCFAllocatorDefault, textureCache, pixelBuffer, nil, .bgra8Unorm, width, height, 0, &cvTexture)
+        let status = cacheLock.withLockUnchecked {
+            CVMetalTextureCacheCreateTextureFromImage(
+                kCFAllocatorDefault, textureCache, pixelBuffer, nil, .bgra8Unorm, width, height, 0, &cvTexture)
+        }
         guard status == kCVReturnSuccess, let cvTexture, let texture = CVMetalTextureGetTexture(cvTexture) else {
             throw SpikeRenderError.textureFromPixelBufferFailed(status)
         }
@@ -135,5 +140,11 @@ final class SpikeFrameRenderer: @unchecked Sendable {
         // The Metal texture borrows the pixel buffer's IOSurface; keep the
         // CoreVideo wrapper alive until the GPU is done with it.
         withExtendedLifetime(cvTexture) {}
+    }
+
+    /// Evicts unused cache entries (the header asks for periodic flushes);
+    /// called once per generated pair.
+    func flushTextureCache() {
+        cacheLock.withLockUnchecked { CVMetalTextureCacheFlush(textureCache, 0) }
     }
 }
