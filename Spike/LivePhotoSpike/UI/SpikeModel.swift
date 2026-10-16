@@ -23,6 +23,7 @@ final class SpikeModel {
     private(set) var previewVariantLabel: String?
     private(set) var isBusy = false
     private(set) var setupError: String?
+    private(set) var verifyError: String?
 
     @ObservationIgnored private var generator: LivePhotoGenerator?
     @ObservationIgnored private var previewDirectory: URL?
@@ -44,8 +45,11 @@ final class SpikeModel {
         } catch {
             setupError = String(describing: error)
         }
-        if !Self.isRunningTests {
-            // Leftovers from a previous launch; Photos keeps its own copies.
+        // Leftovers from a previous launch; Photos keeps its own copies. Once
+        // per process: on iPad every window has its own model, and a second
+        // window must not delete files the first one is still writing.
+        if !Self.isRunningTests && !Self.didClearScratch {
+            Self.didClearScratch = true
             try? FileManager.default.removeItem(at: LivePhotoGenerator.scratchDirectory())
         }
     }
@@ -69,14 +73,19 @@ final class SpikeModel {
 
     /// Requests read access (once) and re-checks every saved variant.
     func verifySaved() async {
+        verifyError = nil
         let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
         guard status == .authorized || status == .limited else {
-            setupError = PhotoLibraryError.notAuthorized(status, .readWrite).description
+            verifyError = PhotoLibraryError.notAuthorized(status, .readWrite).description
             return
         }
         for (id, state) in statuses {
             if case .saved(let localIdentifier, _) = state {
-                statuses[id] = .saved(localIdentifier: localIdentifier, isLive: Self.isLivePhoto(localIdentifier))
+                switch Self.libraryCheck(localIdentifier) {
+                case .live: statuses[id] = .saved(localIdentifier: localIdentifier, isLive: true)
+                case .notLive: statuses[id] = .saved(localIdentifier: localIdentifier, isLive: false)
+                case .notFound: statuses[id] = .failed("Saved earlier, but no longer in Photos.")
+                }
             }
         }
     }
@@ -111,8 +120,14 @@ final class SpikeModel {
         replacePreview(with: livePhoto, label: variant.label, directory: pair.stillURL.deletingLastPathComponent())
 
         let readStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        let isLive: Bool? = (readStatus == .authorized || readStatus == .limited)
-            ? Self.isLivePhoto(localIdentifier) : nil
+        var isLive: Bool?
+        if readStatus == .authorized || readStatus == .limited {
+            switch Self.libraryCheck(localIdentifier) {
+            case .live: isLive = true
+            case .notLive: isLive = false
+            case .notFound: isLive = nil
+            }
+        }
         statuses[variant.id] = .saved(localIdentifier: localIdentifier, isLive: isLive)
     }
 
@@ -125,10 +140,16 @@ final class SpikeModel {
         previewDirectory = directory
     }
 
-    private static func isLivePhoto(_ localIdentifier: String) -> Bool? {
-        guard let asset = try? PhotoLibraryBridge.fetchAsset(localIdentifier: localIdentifier) else { return nil }
-        return asset.mediaSubtypes.contains(.photoLive)
+    private enum LibraryCheck {
+        case live, notLive, notFound
     }
+
+    private static func libraryCheck(_ localIdentifier: String) -> LibraryCheck {
+        guard let asset = try? PhotoLibraryBridge.fetchAsset(localIdentifier: localIdentifier) else { return .notFound }
+        return asset.mediaSubtypes.contains(.photoLive) ? .live : .notLive
+    }
+
+    private static var didClearScratch = false
 
     static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil

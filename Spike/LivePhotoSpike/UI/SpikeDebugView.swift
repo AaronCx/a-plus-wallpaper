@@ -80,6 +80,11 @@ struct SpikeDebugView: View {
             }
             .disabled(model.isBusy)
             .accessibilityHint("Asks for read access, then checks each saved variant is stored as a Live Photo.")
+            if let verifyError = model.verifyError {
+                Text(verifyError)
+                    .foregroundStyle(.red)
+                    .font(.footnote)
+            }
         } header: {
             Text("Variants")
         } footer: {
