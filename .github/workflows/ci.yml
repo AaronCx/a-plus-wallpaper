@@ -51,5 +51,13 @@ jobs:
 
       # Builds with warnings-as-errors, installs, grants Photos access, runs every
       # test and fails on any failed or skipped test (see the script header).
+      # About 25 minutes on macos-26 (software video encoding in the simulator).
       - name: Build and test on the newest iPhone simulator
+        timeout-minutes: 50
         run: scripts/spike-test.sh --device "iPhone 17" --out build/ci
+
+      - name: Show the end of the logs
+        if: failure()
+        run: |
+          tail -n 60 build/ci/build.log 2>/dev/null || true
+          tail -n 200 build/ci/xcodebuild.log 2>/dev/null || true
