@@ -7,19 +7,20 @@
 
 ### Done
 
-- Created the GitHub repo `AaronCx/a-plus-wallpaper` (public, at Aaron's request). `main` holds only GitHub's initial commit; everything else is in the Phase 0 PR.
+- Created the GitHub repo `AaronCx/a-plus-wallpaper` at Aaron's request. Claude chose public visibility (D-10, for Aaron to confirm). `main` holds only GitHub's initial commit; everything else is in the Phase 0 PR.
 - Repo skeleton: `.gitignore` (covers certificates, profiles, keys and `.env`, though none are needed), `README.md`, and `docs/` with `BRIEF.md`, `DECISIONS.md` (section 8 as open items, plus new item D-6), `RISKS.md` (section 7 plus Phase 0 notes) and this file.
 - The `Spike/LivePhotoSpike` throwaway app. No third-party code; Swift 6 with complete strict concurrency; warnings are errors; iOS 17.0 deployment target; iPhone and iPad.
   - **Rendering:** one original Metal compute shader (`SpikeDrift.metal`) renders offscreen at the window scene's native pixel size. Frames go straight into `CVPixelBuffer`s from the writer's pool through a Metal texture cache. Still and video share one code path.
-  - **Writing:** a HEIC still (maker-note key 17) and a MOV with the content identifier and a still-image-time track. The track holds value -1, an identity still-image transform and reference dimensions, and references the video track (`tref cdsc`). These match camera files and use only public SDK identifiers.
+  - **Writing:** a HEIC still (maker-note key 17) and a MOV with the content identifier and a still-image-time track. The track holds one 1-tick sample with value -1, an identity still-image transform and reference dimensions, and references the video track (`tref cdsc`). This matches the camera layout (D-17). All of it is public API except two identifier strings the SDK has no constant for: maker-note "17" and still-image-time.
   - **Saving:** `PHAssetCreationRequest` with `.photo` + `.pairedVideo`.
   - **Debug screen:** saves each of the 12 variants (1.5/2/3 s × 30/60 fps × HEVC/H.264), or all of them. Each frame carries a small label naming its variant, so a Lock Screen shows which one it is. It previews the last pair with `PHLivePhotoView` and can check each saved asset is stored as Live.
-  - **Data, not code:** all export parameters live in `Spike/LivePhotoSpike/LivePhotoRecipe.json`.
-- **Tests (Swift Testing, 11 tests, 12 parameterized variant cases):**
+  - **Data, not code:** the tunable parameters live in `Spike/LivePhotoSpike/LivePhotoRecipe.json`: the variants, seed, bits per pixel, key-frame interval, frame reordering, still position and HEIC quality, and the still-image-time track options.
+    - Fixed in code: codec profile and level, BT.709 colour tags (`LivePhotoMovieWriter.swift`), the 600 timescale, BGRA source buffers, and output size = the screen's native pixels.
+- **Tests (Swift Testing, 12 tests, 4 parameterized file-format cases, 12 parameterized variant cases):**
   - The recipe matrix.
   - Rendering: native size, same output for the same inputs, motion over time.
-  - File format: identifiers, still-image-time value and time, transform, track reference, codec, size, frame count, duration.
-  - Photos' own pairing check, and that it rejects mismatched pairs.
+  - File format, per codec at 30 and 60 fps: identifiers, the still-image-time value, time and duration, identity transform and reference-dimension values, track reference, codec, size, frame count, duration.
+  - Photos' own pairing check. Photos must reject mismatched identifiers when loading and when saving; matching pairs at the same size act as the control.
   - **The round trip** (save, read back as `PHLivePhoto`, export the stored resources and re-check the metadata).
   - Every variant saved and read back, each writing a JSON parameter report.
 - **Scripts:**
@@ -46,8 +47,8 @@ See the PR description and `DECISIONS.md` for the per-variant tables. All runs u
    6. Optional, for a definite yes or no: with the device attached, filter Console.app on process `PhotosPosterProvider` and look for `settlingEffectStatus` while the editor opens.
    7. Record results in the "Phase 0 hardware results" table in `DECISIONS.md`.
 
-   **Fast path:** test the 12 variants on one iOS 26 device first. If none moves, the remaining iOS versions add little; go to D-6.
-3. **Decide** D-6 (motion path) and D-1 to D-5 (bundle ID, licence, art browsing, presets repo name, iOS 17 minimum).
+   **Fast path:** test the 12 variants on one device first, for example your paired iPhone Air (iOS 27.0.1). If none moves, the remaining iOS versions add little; go to D-6.
+3. **Decide** D-6 (motion path) and D-1 to D-5 (bundle ID, licence, art browsing, presets repo name, iOS 17 minimum). Also confirm public visibility (D-10).
 
 ### Next: for the following session
 
@@ -64,6 +65,6 @@ See the PR description and `DECISIONS.md` for the per-variant tables. All runs u
 - **Simulator Photos access:** `xcrun simctl privacy grant photos` writes a version-1 TCC entry. PhotoKit's read/write check queries version 2, so the app sees "not determined". `spike-test.sh` upgrades the entry in its own simulators only (decision D-13); evidence is in `tccd`'s log.
   - Tests never request access, because an unanswered prompt can leave the grant set to "denied".
 - **The simulator can't judge wallpaper motion.** Its wallpaper editor never offers Live Effect, because the on-device ML step behind the "settling effect" fails there. Only hardware answers the question.
-- **Simulator encoders are software only.** HEVC is slow (a full matrix run is about 4 minutes locally). The simulator's HEVC encoder (VCPHEVC) logs `unrecognised property key` once per movie; the Mac's encoder doesn't, and the output checks out (Main profile, `hvc1`, no reordering, BT.709 tags). It also encodes full-range YUV, while H.264 is video-range. Devices use the hardware encoder, so neither applies there.
+- **Simulator encoders are software only, and HEVC is slow.** One simulator's full suite takes about 3-6 minutes locally; the 7-simulator `spike-matrix.sh` about 35-45 minutes; the CI job about 25 minutes on `macos-26`. The simulator's HEVC encoder (VCPHEVC) logs `unrecognised property key` once per movie; the Mac's encoder doesn't, and the output checks out (Main profile, `hvc1`, no reordering, BT.709 tags). It also encodes full-range YUV, while H.264 is video-range. Devices use the hardware encoder, so neither applies there.
 - **Simulators created:** this session made dedicated `APW …` simulators. Remove them any time with `xcrun simctl delete <udid>`; `scripts/spike-test.sh` recreates them on demand.
 - **Repo path:** the local repo lives at `~/Developer/github/a-plus-wallpaper`. `~/Developer/github/wallpaper-studio` is a symlink to it, kept so the original brief path still works.

@@ -31,6 +31,6 @@ Copied from `docs/BRIEF.md`, section 7. Update this file at the end of every ses
 - Community generators that do get motion all add a `com.apple.quicktime.live-photo-info` timed metadata track. It has no public constant and an undocumented binary payload. Every working generator found copies the same 136-byte payload, which traces back to a commercial app.
 - The simulator cannot answer the question. Its wallpaper editor never offers "Live Effect" for any photo, because the on-device ML step behind the "settling effect" fails in the simulator. Only Aaron's hardware test settles it.
 
-**Mitigation still in place:** the export parameters live in `Spike/LivePhotoSpike/LivePhotoRecipe.json` (data, not code), and the 12-variant hardware matrix is ready for Aaron.
+**Mitigation still in place:** the tunable export parameters live in `Spike/LivePhotoSpike/LivePhotoRecipe.json` (data, not code). Codec profile, colour tags and output size are still in code (see `HANDOFF.md`). The 12-variant hardware matrix is ready for Aaron.
 
 **Risk 15 unchanged:** zero dependencies. The project file is hand-written so no generator tool is needed. CI uses only `actions/checkout`, pinned to a full commit SHA.
