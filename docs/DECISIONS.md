@@ -29,10 +29,12 @@ Any motion attempt probably also needs the **video** capped at about 1920 px on 
 
 ### D-1: app name and bundle ID
 
-**Status:** partly decided.
+**Status:** decided, except the App Store name (Aaron to confirm).
 
-- **Name: a+wallpaper.** Decided by Aaron, 2026-10-16.
-- **Bundle ID:** proposed `com.aaroncx.apluswallpaper`, to match `com.aaroncx.aplusterminal`. Aaron to confirm before any App Store Connect work. The spike uses `com.aaroncx.apluswallpaper.spike` so it can't collide with the real app on a device.
+- **Name: a+wallpaper.** Decided by Aaron, 2026-10-16. This is the name under the home-screen icon.
+- **Bundle ID: `com.aaroncx.apluswallpaper`**, to match `com.aaroncx.aplusterminal`. Registered 2026-10-18, when Aaron asked for the App Store Connect app. The spike uses `com.aaroncx.apluswallpaper.spike` (also registered, with a development profile for Aaron's iPhone Air) so it can't collide with the real app on a device.
+- **App Store Connect app:** created 2026-10-18 at Aaron's request. Apple ID `6824322347`, SKU `a-plus-wallpaper`, primary language English (U.S.).
+- **App Store name: "a+wallpaper studio"**, chosen by Claude because App Store Connect said "a+wallpaper" is already in use. Aaron to confirm. The name can be changed in App Store Connect until the first submission.
 
 ### D-2: code licence
 
