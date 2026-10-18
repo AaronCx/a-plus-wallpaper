@@ -15,7 +15,14 @@ main() {
   local ROOT OUT
   ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   OUT="${1:-$ROOT/build/spike-matrix}"
-  rm -rf "$OUT"
+  # Only clear a directory this script can own: one under build/, or a new or
+  # empty one. A mistyped argument must never delete something else.
+  if [[ "$OUT" == "$ROOT/build/"* && "$OUT" != *..* ]]; then
+    rm -rf "$OUT"
+  elif [[ -e "$OUT" && -n "$(ls -A "$OUT" 2>/dev/null)" ]]; then
+    echo "Refusing to clear $OUT: pass a new or empty directory, or one under $ROOT/build/." >&2
+    exit 64
+  fi
   mkdir -p "$OUT"
 
   local MATRIX=(
