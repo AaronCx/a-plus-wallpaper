@@ -16,6 +16,8 @@
 *.env
 secrets/
 AuthKey_*
+# xcodebuild -exportArchive options name the team and profiles; keep them local.
+[Ee]xport[Oo]ptions*.plist
 
 # --- Xcode -------------------------------------------------------------------
 build/
