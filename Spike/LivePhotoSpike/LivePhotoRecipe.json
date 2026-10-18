@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "seed": 20261016,
+  "still": {
+    "timeFraction": 0.5,
+    "compressionQuality": 0.9
+  },
+  "video": {
+    "bitsPerPixel": { "hevc": 0.08, "h264": 0.12 },
+    "keyFrameIntervalSeconds": 1.0,
+    "allowFrameReordering": false
+  },
+  "stillImageTimeTrack": {
+    "value": -1,
+    "durationTicks": 1,
+    "includeStillImageTransform": true,
+    "associateWithVideoTrack": true
+  },
+  "variants": [
+    { "id": "1.5s-30fps-hevc", "durationSeconds": 1.5, "framesPerSecond": 30, "codec": "hevc" },
+    { "id": "1.5s-30fps-h264", "durationSeconds": 1.5, "framesPerSecond": 30, "codec": "h264" },
+    { "id": "1.5s-60fps-hevc", "durationSeconds": 1.5, "framesPerSecond": 60, "codec": "hevc" },
+    { "id": "1.5s-60fps-h264", "durationSeconds": 1.5, "framesPerSecond": 60, "codec": "h264" },
+    { "id": "2.0s-30fps-hevc", "durationSeconds": 2.0, "framesPerSecond": 30, "codec": "hevc" },
+    { "id": "2.0s-30fps-h264", "durationSeconds": 2.0, "framesPerSecond": 30, "codec": "h264" },
+    { "id": "2.0s-60fps-hevc", "durationSeconds": 2.0, "framesPerSecond": 60, "codec": "hevc" },
+    { "id": "2.0s-60fps-h264", "durationSeconds": 2.0, "framesPerSecond": 60, "codec": "h264" },
+    { "id": "3.0s-30fps-hevc", "durationSeconds": 3.0, "framesPerSecond": 30, "codec": "hevc" },
+    { "id": "3.0s-30fps-h264", "durationSeconds": 3.0, "framesPerSecond": 30, "codec": "h264" },
+    { "id": "3.0s-60fps-hevc", "durationSeconds": 3.0, "framesPerSecond": 60, "codec": "hevc" },
+    { "id": "3.0s-60fps-h264", "durationSeconds": 3.0, "framesPerSecond": 60, "codec": "h264" }
+  ]
+}
