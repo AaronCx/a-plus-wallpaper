@@ -81,22 +81,37 @@ CI (`macos-26`, Xcode 26.5) runs the same full suite on iPhone 17 / iOS 26.5. No
 - **Simulators created:** this session made dedicated `APW …` simulators. Remove them any time with `xcrun simctl delete <udid>`; `scripts/spike-test.sh` recreates them on demand.
 - **Repo path:** the local repo lives at `~/Developer/github/a-plus-wallpaper`. `~/Developer/github/wallpaper-studio` is a symlink to it, kept so the original brief path still works.
 
-## Session 1 follow-up: App Store Connect and device signing (2026-10-18)
+## Session 1 follow-up: App Store Connect, device builds and TestFlight (2026-10-18)
 
 At Aaron's request:
 
-- **Bundle IDs registered** with the App Store Connect API: `com.aaroncx.apluswallpaper` and `com.aaroncx.apluswallpaper.spike`.
-- **Development profile** "aPlusWallpaper Spike DevLab", created through the API for the spike on Aaron's iPhone Air. It uses the same "Created via API" development certificate as a+Terminal's DevLab profiles and expires 2027-10-18. The repo still sets no team; a device build passes signing on the command line:
+- **Bundle IDs registered:** `com.aaroncx.apluswallpaper` (the app) and `com.aaroncx.apluswallpaper.spike` (development installs of the spike).
+- **App Store Connect app created.** Details are in D-1. "a+wallpaper" was taken, so the App Store name is "a+wallpaper studio" until Aaron decides.
+- **Signing stays out of the repo.** The project sets no team. Development and App Store profiles live in the developer account; pass the team and profile on the command line.
+- **Direct device install** needs the device on the Mac's local network or a cable: `devicectl` finds devices with Bonjour, which a VPN doesn't carry.
 
   ```sh
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
     -project Spike/LivePhotoSpike.xcodeproj -scheme LivePhotoSpike \
     -destination 'generic/platform=iOS' -derivedDataPath build/device/DerivedData build \
-    CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=P6VJJ7XQN9 CODE_SIGN_IDENTITY="Apple Development" \
-    PROVISIONING_PROFILE_SPECIFIER="aPlusWallpaper Spike DevLab"
+    CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=<your team ID> CODE_SIGN_IDENTITY="Apple Development" \
+    PROVISIONING_PROFILE_SPECIFIER="<development profile for com.aaroncx.apluswallpaper.spike>"
+  xcrun devicectl device install app --device <device> \
+    build/device/DerivedData/Build/Products/Debug-iphoneos/LivePhotoSpike.app
   ```
 
-  Then run `xcrun devicectl device install app --device <id> build/device/DerivedData/Build/Products/Debug-iphoneos/LivePhotoSpike.app`.
-- **App Store Connect app created** in Aaron's signed-in Safari (the API can't create apps: "The resource 'apps' does not allow 'CREATE'"). Details are in D-1. "a+wallpaper" was taken, so the App Store name is "a+wallpaper studio" until Aaron decides.
-- **Installing over Tailscale doesn't work.** `devicectl` finds the phone over local-network Bonjour, which Tailscale doesn't carry. Over Tailscale the phone answers ping, but its lockdown port (62078) is closed and neither open port speaks Apple's remote-pairing protocol. Install from the same Wi-Fi as the Mac, or by cable.
-- **Apple Developer Program License Agreement:** App Store Connect shows an updated agreement that the Account Holder must accept before apps can be updated or submitted. Only Aaron can accept it.
+- **TestFlight (D-19):**
+  - The spike now has an app icon (`Assets.xcassets`, drawn by `scripts/make-spike-icon.swift`) and `PrivacyInfo.xcprivacy`.
+  - Build 0.0.1 (1) is on TestFlight as an internal-only build. It was not launch-tested on a device before upload.
+  - To upload again, raise `CURRENT_PROJECT_VERSION` (or pass it on the command line), then archive:
+
+  ```sh
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+    -project Spike/LivePhotoSpike.xcodeproj -scheme LivePhotoSpike \
+    -destination 'generic/platform=iOS' archive -archivePath build/LivePhotoSpike.xcarchive \
+    CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=<your team ID> CODE_SIGN_IDENTITY="Apple Distribution" \
+    PROVISIONING_PROFILE_SPECIFIER="<App Store profile for com.aaroncx.apluswallpaper>" \
+    PRODUCT_BUNDLE_IDENTIFIER=com.aaroncx.apluswallpaper
+  ```
+
+  Then export with `xcodebuild -exportArchive`, using an export-options plist (ignored by git) with `method` app-store-connect, `destination` upload, manual signing and `testFlightInternalTestingOnly` true. Authenticate with App Store Connect API key flags, and keep the key file outside the repo.
